@@ -142,7 +142,7 @@ constructor(private readonly appService: AppService) {} // 컨트롤러에서 �
 
   - ex) 우리가 '로봇 팔' 레고 모델을 만든다고 생각해봐요. 로봇 팔에는 '모터' 블록이 필요해요. 디펜던시 인젝션은 마치 "여기에 모터 블록을 끼우세요"라고 알려주는 조립 설명서와 같아요. 나중에 더 강한 모터가 필요하면, 기존 모터 블록만 새것으로 쉽게 교체할 수 있답니다.
 
-## Modules & 캡슐화
+## Modules & Encapsulation(캡슐화)
 
 ### Modules
 
