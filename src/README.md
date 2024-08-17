@@ -169,3 +169,58 @@ export(내보내기)를 module에서 해주지 않으면 캡슐화가 진행되�
   exports: [CatsService], // 요렇게 서비스를 내보내기 해줘야함
 })
 ```
+
+## Nest Middleware
+
+### middleware 생성 cli
+
+```bash
+nest g middleware [만들 명칭]
+```
+
+logger기능은 어떤 기능으로 사용했는지 클라이언트에 대해서 추적이 가능함
+
+```ts
+export class AppModule implements NestModule {
+  private logger = new Logger('HTTP'); // logger를 사용하기 위해서 씀
+  configure(consumer: MiddlewareConsumer) {
+    this.logger.log(req.ip, req.originalUrl); // 위 로거를 통해서 ip와 url을 확인할 수 있는 print같은 기능
+    consumer.apply(LoggerMiddleware).forRoutes('*'); //별표시는 전체 엔드포인트에 대해서
+  }
+}
+```
+
+위 코드처럼 사용할 미들웨어를 저렇게 추가해야한다.
+
+리스폰스에 대한 결과값도 로그를 찍어줄 수 있음.
+
+```ts
+export class AppModule implements NestModule {
+  private logger = new Logger('HTTP'); // logger를 사용하기 위해서 씀
+  configure(consumer: MiddlewareConsumer) {
+    res.on('finish', () => {
+      this.logger.log(
+        `${req.ip} ${req.method} ${res.statusCode}`, // 성공했는지 아닌지도 로그에 다찍히게 됨
+        req.originalUrl,
+      );
+    });
+  }
+}
+```
+
+## 예외처리 방법
+
+```ts
+  @Get()
+  getAllCats() {
+    throw new HttpException('api is broken', 401); // nestjs 에서는 강제로 오류내는걸 이렇게냄
+    return 'All Cats';
+  }
+```
+
+- 강제로 에러처리를 통해 커스텀 에러를 만들어야할때도 있음
+
+### filter
+
+- filter로 원하는형태로 반환 가능
+  /src에 http-exception.filter.ts를 보면됨
