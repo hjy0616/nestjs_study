@@ -9,6 +9,7 @@ pnpm start:dev
 ### controller
 
 - 사용자의 요청을 받아서 적절히 처리하고 응답을 돌려주는 역할을 함
+- 인자값을 가져올때는 object 형식으로 데이터를 가져오고 받음
 - 마치 웨이터 처럼
 
 1.  손님의 주문 받기:
@@ -224,3 +225,102 @@ export class AppModule implements NestModule {
 
 - filter로 원하는형태로 반환 가능
   /src에 http-exception.filter.ts를 보면됨
+
+- filter도 글로벌(전역)으로 관리하는 방법과 각각 모듈별로 관리하는 방법이 있다고함
+
+#### global관리
+
+- global로 관리가 가능함 아래코드 참조
+
+```ts
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
+import path from 'path';
+
+@Catch(HttpException)
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+    const error = exception.getResponse() as  // error 메시지도 볼 수 있음
+      | string
+      | { error: string; statusCode: number; message: string | string[] }; // 이렇게 넣어서 메시지도 반환 가능
+    /*
+    아래 처럼 분기처리가 가능함.
+    ...error가 비구조 할당을 통해서 보내주도록 하는 것
+    */
+
+    if (typeof error === 'string') {
+      res.status(status).json({
+        statusCode: status,
+        timestamp: new Date().toISOString(),
+        path: req.url,
+        error,
+      });
+    } else {
+      res.status(status).json({
+        statusCode: status,
+        timestamp: new Date().toISOString(),
+        path: req.url,
+        ...error,
+      });
+    }
+  }
+}
+```
+
+#### module 별로 관리
+
+- useFilter 어노테이션을 사용해서 getAllCats의 컨트롤러를 사용할때 사용이 가능하다
+
+```ts
+  @Get()
+  @UseFilters(HttpExceptionFilter)
+  getAllCats() {
+    throw new HttpException('api is broken', 401);
+    return 'All Cats';
+  }
+```
+
+- useFilters를 controller쪽에 추가하면 전체적으로 관리가 가능하다.
+
+```ts
+@Controller('cats')
+@UseFilters(HttpExceptionFilter)
+export class CatsController {
+  constructor(private readonly catsService: CatsService) {}
+}
+```
+
+### Pipe
+
+- 정의 : 클라이언트 요청(req)에서 들어오는 데이터를 유효성 검사 및 변환을 수행하여 서버가 원하는 데이터를 얻을 수 있도록 도와주는 클래스
+- string으로 인자값을 가져오지만 id같은 경우 type을 string이 아닌 number형태로 보내는 경우가 많다고 한다.
+- 그럴경우 'ParseIntPipe'를 통해서 값을 형변환 시켜줘야한다.
+
+```ts
+  @Get(':id')
+  getOneCat(@Param('id', ParseIntPipe) param: number) {
+    console.log(param);
+    return 'One Cat';
+  }
+```
+
+## interceptors & AOP 패턴
+
+- 인터셉터는 @injectable()"디펜던시 인젝션이 가능" 데코레이터로 주석이 달린 클래스.
+  인터셉터는 NextInterceptor 인터페이스를 구현해야됨
+- 인터셉터에는 (관점 지향 프로그래밍)AOP(Aspect Oriented Programming)기술에서 영감을 받은 유용한 기능 세트가 있다고함,
+  - 수행가능한것:
+    - 메서드 실행 전 후에 추가 논리 바인딩 가능
+    - 함수에서 반환된 결과를 변환
+    - 함수에서 발생한 예외를 변환
+    - 기본 기능 동작 확장
+    - 특정 조건 (ex: 캐싱 목적)에 따라 함수를 완전히 재정의
